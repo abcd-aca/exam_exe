@@ -1,0 +1,1 @@
+type PickPromise<P> = P extends Promise<infer R> ? R : P

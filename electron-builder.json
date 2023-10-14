@@ -1,0 +1,51 @@
+/**
+ * @see https://www.electron.build/configuration/configuration
+ */
+{
+  "productName": "点名小工具",
+  "copyright":"xu",
+  "appId": "com.jinglecats.evenyday",
+  "asar": true,
+  "compression":"store",
+  "directories": {
+    "output": "release/${version}"
+  },
+  "files": [
+    "dist-electron",
+    "dist"
+  ],
+  "extraResources":{
+    "from":"./config.ini",
+    "to":"../"
+  },
+  "mac": {
+    "artifactName": "${productName}_${version}.${ext}",
+    "target": [
+      "dmg",
+      "zip"
+    ]
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "icon":"/favicon.ico",
+    "artifactName": "${productName}_${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false
+  },
+  "publish": {
+    "provider": "generic",
+    "channel": "latest",
+    "url": "https://github.com/electron-vite/electron-vite-react/releases/download/v0.9.9/"
+  }
+}
