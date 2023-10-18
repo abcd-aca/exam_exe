@@ -1,4 +1,5 @@
 
 import './app.scss';
-import RandomNames from '@/views/RandomName';
+import '@/views/styles/star.scss';
+import RandomNames from '@/views';
 export default RandomNames;

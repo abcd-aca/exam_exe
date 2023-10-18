@@ -4,7 +4,7 @@
     align-items: center;
     justify-content: center;
     height: 100vh;
-    position: relative;
+    //position: relative;background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 .select{
     position: absolute;
@@ -13,4 +13,13 @@
     width: 100%;
     box-sizing: border-box;
     align-items: center;
+}
+.fail{
+    color: #ff7875 !important;
+}
+.pass{
+    color: #52c41a !important;
+}
+.text-white{
+    color: #fff;
 }

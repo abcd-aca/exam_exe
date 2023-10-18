@@ -12,7 +12,13 @@ export function readXlsx(path:string):Promise<ExcelData>{
         const data = xlsx.parse(result);
          resolve(data);
        }catch(err){
-        reject(err)
+         reject(err)
        }
     })
+}
+export function copyFileTo(from:string,to:string){
+
+}
+export function delFile(path:string){
+
 }
