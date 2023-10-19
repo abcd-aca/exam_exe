@@ -1,0 +1,31 @@
+.header{
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 46px;
+    justify-content: flex-end;
+    padding: 0 30px;
+    -webkit-user-select: none;
+  -webkit-app-region: drag;
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  width: 100%;
+  border-bottom: 1px solid rgba($color: #666, $alpha: .3);
+  cursor: pointer;
+  .icon{
+    font-size: 20px;
+    color: #fff;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+    padding: 5px;
+    &:hover{
+        background-color: rgba($color: #fff, $alpha: .4);
+        border-radius: 4px;
+    }
+  }
+  .icon + .icon{
+    margin-left: 10px;
+  }
+}

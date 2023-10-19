@@ -7,7 +7,7 @@ export default class Db<T extends any>{
     constructor(path:string){
         let baseData = {};
         try{
-            baseData =  new JSONFileSync<Record<string,string>>(path).read() as Record<string,string>
+            baseData =  new JSONFileSync<Record<string,string>>(path).read() as Record<string,string> || {};
         }catch{}
        // this.baseData = new JSONFile<Record<string,string>>(path);//new Low<Record<string,string>>(JSONFile(path));
         this.db = new Low<Record<string,string>>(new JSONFile(path),baseData);
@@ -16,6 +16,7 @@ export default class Db<T extends any>{
     async set(data:T,key:string){
     }
     async insert(key:string,data:T){
+        if(!this.db.data) this.db.data = {};
         (this.db.data as any)[key] =await this.crypto.encrypt(JSON.stringify(data));
         await this.db.write();
         const result = await this.getData();

@@ -25,3 +25,11 @@ export function getConfig():_Config{
     }
     return baseConfig;
 }
+export function rootUrl(devUrl:string,prodUrl?:string){
+    prodUrl = prodUrl?prodUrl:devUrl;
+    if(process.env.NODE_ENV === "development"){
+        return resolve("./",devUrl);
+    }else{
+       return resolve(resolve(__dirname,"../../../"),prodUrl);
+    }
+}

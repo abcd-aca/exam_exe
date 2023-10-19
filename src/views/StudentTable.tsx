@@ -9,8 +9,11 @@ import {
   Form,
   Input,
   Popconfirm,
-  InputNumber
+  InputNumber,App
+  
 } from "antd";
+import { useAppDispatch } from '@/hooks/dispatch';
+import { updateStudent } from '@/store/modules/app';
 import type { DrawerProps, RadioChangeEvent, InputRef } from "antd";
 import type { FormInstance } from "antd/es/form";
 import type { ColumnsType } from "antd/es/table";
@@ -118,12 +121,13 @@ const StudentsTable: React.FC<{
   const [placement, setPlacement] = useState<DrawerProps["placement"]>("left");
   const [dataSource, setDataSource] = useState<StudentData>([]);
   const [tableName, setTableName] = useState("");
+  const dispatch = useAppDispatch();
+  const { message } = App.useApp();
   useEffect(() => {
     if (fileList[fileId]) {
       const { name, data } = fileList[fileId];
       setTableName(name);
       setDataSource(data);
-      console.log(data);
     }
   }, [fileList, fileId]);
 
@@ -142,15 +146,25 @@ const StudentsTable: React.FC<{
       cell: EditableCell,
     },
   };
-  const handleSave = (row: Student) => {
+  const handleSave = async (row: Student) => {
+    console.log(row);
+    try{
+    const result = await dispatch(updateStudent({id:fileId,data:row}));
+    if(result.meta.requestStatus !== "fulfilled"){
+      return message.error("设置失败")
+    }
     const newData = [...dataSource];
     const index = newData.findIndex((item) => row.id === item.id);
     const item = newData[index];
+    
     newData.splice(index, 1, {
       ...item,
       ...row,
     });
     setDataSource(newData);
+    }catch(err){
+      message.error("设置失败")
+    }
   };
   const defaultColumns:(ColumnTypes[number] & { editable?: boolean; dataIndex: string })[]= [
     {
@@ -159,7 +173,7 @@ const StudentsTable: React.FC<{
     },
     {
       title:"班级",
-      dataIndex:"class",
+      dataIndex:"_class",
     },
     {
       title:"分数",
@@ -186,6 +200,11 @@ const StudentsTable: React.FC<{
       dataIndex:"chance",
       sorter:getSorter("chance"),
       editable:true,
+      render(value, record, index) {
+          return <div>
+              {value>0?value.toFixed(1)+"%":value}
+          </div>
+      },
       onCell:(record)=>{
         return ({
           record,
@@ -197,13 +216,18 @@ const StudentsTable: React.FC<{
     },
     {
       title:"单次概率",
-      dataIndex:"chance",
-      sorter:getSorter("chance"),
+      dataIndex:"onechance",
+      sorter:getSorter("onechance"),
       editable:true,
+      render(value, record, index) {
+          return <div>
+              {value>0?value.toFixed(1)+"%":value}
+          </div>
+      },
       onCell:(record)=>{
         return ({
           record,
-          dataIndex:"chance",
+          dataIndex:"onechance",
           title:"概率",
           handleSave,editable:true
        })

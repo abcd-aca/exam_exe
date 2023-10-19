@@ -21,6 +21,7 @@ import { setStudents, initStudents } from "@/store/modules/app";
 import { StudentsData } from "@/store/modules/app";
 import StudentsTable from "@/views/StudentTable";
 import {RandomName} from './RandomName';
+import Header from "./header";
 // import {  } from
 
 interface Datas {
@@ -218,6 +219,7 @@ const Page: React.FC = () => {
   return (
     <div className='main'>
       {contextHolder}
+      <Header />
       <SelectGroups
         fileList={fileList}
         handleSelChange={handleGroupChange}

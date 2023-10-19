@@ -1,6 +1,6 @@
 {
   "name": "exam_pc",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "课堂管理pc端",
   "main": "dist-electron/main.js",
   "license": "MIT",

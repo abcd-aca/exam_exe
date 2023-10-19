@@ -8,6 +8,7 @@ import {
 } from "@reduxjs/toolkit";
 import { readXlsx } from "@/utils/file";
 import { RootState } from "..";
+import { rootUrl } from "@/utils/config"; 
 export interface Student {
   id: string;
   name: string;
@@ -15,19 +16,19 @@ export interface Student {
   fail: number;
   pass: number;
   total: number;
-  class: string | number;
-  chance:number,
-  onechance:number
+  _class: string | number;
+  chance: number;
+  onechance: number;
 }
 export type StudentData = Student[];
 interface dbData {
-    name: string;
-    id:string,
-    data: Student[];
-  }
-export interface StudentsData{
-  [key:string]:dbData;
-} 
+  name: string;
+  id: string;
+  data: Student[];
+}
+export interface StudentsData {
+  [key: string]: dbData;
+}
 interface AppData {
   students: StudentsData;
   database: Db<dbData>;
@@ -39,36 +40,67 @@ const appData = {
 const getKeys = () => Object.keys(appData.students).map((key) => key);
 //export const setStudents = createAction<{filePath,}>("app/setStudents");
 //增加提问记录时间 及回答问题
-export const updateStudent = createAction(
-  "app/updateStudent",
-  function prepare(key: ReturnType<typeof getKeys>, data: Student) {
-    return {
-      payload: {
-        key,
-        data,
-        update_time: moment(new Date(), "YYYY-MM-DD HH:mm:ss"),
-      },
-    };
+// export const updateStudent = createAction(
+//   "app/updateStudent",
+//   function prepare(key: ReturnType<typeof getKeys>, data: Student) {
+//     return {
+//       payload: {
+//         key,
+//         data,
+//         update_time: moment(new Date(), "YYYY-MM-DD HH:mm:ss"),
+//       },
+//     };
+//   }
+// );
+export const updateStudent = createAsyncThunk(
+  "updateStudentsStatus",
+  async ({ id, data }: { id: string; data: Partial<Student> }, thunkApi) => {
+    try {
+      const state = thunkApi.getState() as RootState;
+      const content = JSON.parse(JSON.stringify(state.appReducer.students[id])) as dbData;
+      content.data.forEach((item) => {
+        if (item.id === data.id) {
+          // console.log("data",data);
+          // console.log(item,"contnet")
+          Object.keys(data).forEach((key) => {
+            // console.log(item)
+            // console.log(data)
+            if ((item as any)[key] != (data as any)[key]) {
+              (item as any)[key] = (data as any)[key];
+            }
+          });
+        }
+      });
+      const newData = await state.appReducer.database.insert(id, content);
+      return {
+        newData,
+      };
+    } catch (err) {
+      console.log(err);
+      return thunkApi.rejectWithValue(err);
+    }
   }
 );
-export const deleteStudents = createAsyncThunk("deleteStudentsStatus",async (id:string,thunkApi)=>{
-  try{
-    const state = thunkApi.getState() as RootState;
-    await state.appReducer.database.delete(id);
-    return {
-      id
+export const deleteStudents = createAsyncThunk(
+  "deleteStudentsStatus",
+  async (id: string, thunkApi) => {
+    try {
+      const state = thunkApi.getState() as RootState;
+      await state.appReducer.database.delete(id);
+      return {
+        id,
+      };
+    } catch (err) {
+      return thunkApi.rejectWithValue(err);
     }
-  }catch(err){
-    return thunkApi.rejectWithValue(err)
   }
-});
+);
 export const initStudents = createAsyncThunk(
   "iniStudentStatus",
   async (path: undefined, thunkApi) => {
     try {
-      const cryptodb = new Db<dbData>(
-        "C:/Users/29305/Desktop/projects/exam_pc/file.json"
-      );
+      console.log(rootUrl("data.json","resources/data.json"))
+      const cryptodb = new Db<dbData>(rootUrl("data.json","resources/data.json"));
       const data = await cryptodb.getData();
       return {
         cryptodb,
@@ -82,12 +114,14 @@ export const initStudents = createAsyncThunk(
 );
 export const setStudents = createAsyncThunk(
   "setStudentStatus",
-  async ({ path, fileName }:{ path: string; fileName: string }, thunkApi) => {
+  async ({ path, fileName }: { path: string; fileName: string }, thunkApi) => {
     try {
       const state = thunkApi.getState() as RootState;
-     // console.log(state)
+      // console.log(state)
       const paths = Object.keys(state.appReducer.students);
-      const names = paths.map((key) => state.appReducer.students[String(key)].name);
+      const names = paths.map(
+        (key) => state.appReducer.students[String(key)].name
+      );
       if (paths.includes(path)) {
         return thunkApi.rejectWithValue({
           code: 0,
@@ -105,35 +139,35 @@ export const setStudents = createAsyncThunk(
         const content: StudentData = studentData.map((item) => {
           const [_class, name, score] = item;
           return {
-            class: _class,
+            _class: _class,
             name: name as string,
             score,
             fail: 0,
             pass: 0,
             total: 0,
             id: nanoid(),
-            chance:0,
-            onechance:0,
+            chance: 0,
+            onechance: 0,
           };
         });
         const id = nanoid();
-        await state.appReducer.database.insert(id,{
+        await state.appReducer.database.insert(id, {
           id,
-          name:fileName,
-          data:content
-        })
+          name: fileName,
+          data: content,
+        });
         return {
-            students:{
-                [id]:{
-                    name:fileName,
-                    id:id,
-                    data:content
-                  }
-            }
+          students: {
+            [id]: {
+              name: fileName,
+              id: id,
+              data: content,
+            },
+          },
         };
       }
     } catch (err) {
-      console.log(err)
+      console.log(err);
       return thunkApi.rejectWithValue(err);
     }
   }
@@ -141,28 +175,28 @@ export const setStudents = createAsyncThunk(
 export const appReducer = createReducer<AppData>(appData, (builder) => {
   builder
     .addCase(setStudents.fulfilled, (state, action) => {
-        const { students } = action.payload;
-        Object.keys(students).forEach(key=>{
-            if(students.hasOwnProperty(key)){
-                state.students[key] = students[key];
-            }
-        })
+      const { students } = action.payload;
+      Object.keys(students).forEach((key) => {
+        if (students.hasOwnProperty(key)) {
+          state.students[key] = students[key];
+        }
+      });
     })
-    .addCase(updateStudent, (state, action) => {
-
+    .addCase(updateStudent.fulfilled, (state, action) => {
+      const { newData } = action.payload;
+      state.students = newData;
     })
     .addCase(initStudents.fulfilled, (state, action) => {
       const { data, cryptodb } = action.payload;
       state.students = data;
       state.database = cryptodb;
     })
-    .addCase(deleteStudents.fulfilled,(state,action)=>{
-      for(let key in state.students){
-        if(state.students[key].id === action.payload.id){
-          delete state.students[key]
-        } 
+    .addCase(deleteStudents.fulfilled, (state, action) => {
+      for (let key in state.students) {
+        if (state.students[key].id === action.payload.id) {
+          delete state.students[key];
+        }
       }
-      
     })
     .addDefaultCase((state, action) => {});
 });
