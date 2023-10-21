@@ -1,4 +1,4 @@
-import { Select, Button, message, List,Popconfirm, Space,Empty } from "antd";
+import { Select, Button, message, List,Popconfirm, Space,Empty,Switch } from "antd";
 import { SettingOutlined } from "@ant-design/icons";
 import { useAppSelector } from "@/hooks/dispatch";
 import {
@@ -17,11 +17,12 @@ import { basename } from "path";
 import { Setting } from "./Setting";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch } from "@/store";
-import { setStudents, initStudents } from "@/store/modules/app";
+import { setStudents, initStudents,updateStudent } from "@/store/modules/app";
 import { StudentsData } from "@/store/modules/app";
 import StudentsTable from "@/views/StudentTable";
 import {RandomName} from './RandomName';
 import Header from "./header";
+import { randomZeroBetween } from "@/utils";
 // import {  } from
 
 interface Datas {
@@ -41,28 +42,31 @@ interface SelectGroupsProps {
   handleOpenSetting: (x: boolean) => any;
   handleFileChange: (x: string) => any;
   handleOpenDrawer: () => any;
-  fileList:StudentsData
+  fileList:StudentsData,
+  fileId:string
 }
-export type randomItem = {key:string,name:string};
+export type randomItem = {id:string,name:string,chance:number,onechance:number};
 const SelectGroups: React.FC<SelectGroupsProps> = memo(
   ({
     handleSelChange,
     handleFileChange,
     handleOpenDrawer,
     handleOpenSetting,
-    fileList
+    fileList,fileId
   }) => {
     const [ ListNames,setListNames ] = useState<TypeListNames[]>([]);
     useEffect(()=>{
       let _ListNames:TypeListNames[];
+      let hasCurrentId = false;
       _ListNames = Object.values(fileList).map(item=>{
+        if(item.id === fileId)hasCurrentId = true;
         return {
           label:item.name,
           value:item.id
         }
       }); 
       setListNames(_ListNames);
-      _ListNames[0]&&handleFileChange(_ListNames[0].value)
+      _ListNames[0]&&!hasCurrentId&&handleFileChange(_ListNames[0].value)
     },[fileList])
     //console.log("selectgroups render");
     return (
@@ -96,7 +100,6 @@ const SelectGroups: React.FC<SelectGroupsProps> = memo(
             >
               名单管理
             </Button>
-            {/* <SettingOutlined style={{fontSize:"22px",cursor:"pointer"}} /> */}
             <SettingOutlined
               onClick={handleOpenDrawer}
               style={{ fontSize: "22px", cursor: "pointer",color:"#fff" }}
@@ -110,21 +113,22 @@ const SelectGroups: React.FC<SelectGroupsProps> = memo(
 const Page: React.FC = () => {
   const [group, setGroup] = useState("1");
   const dispatch = useDispatch<AppDispatch>();
-  const [names, setNames] = useState<randomItem[][]>([]);
   const [fileList, setFileList] = useState<StudentsData>({});
   const [drawerStatus, setDrawerStatus] = useState(false);
   const [settingStatus, setSettingstatus] = useState(false);
-  const RandomNameRef = useRef<any[]>([]);
-  const RandomNames = useRef<randomItem[]>([]);
-  const timeoutList = useRef<NodeJS.Timeout[]>([]);
+  const [ activeNames,setActiveNames ] = useState<randomItem[]>([])
+  const timeoutList = useRef<NodeJS.Timeout|null>(null);
   const groupNames = useRef<randomItem[]>([]);
-  const [fileIndex, setFileIndex] = useState("0");
+  const [fileId, setFileId] = useState("0");
   const [messageApi, contextHolder] = message.useMessage();
   const appState = useAppSelector(state=>state.appReducer);
+  interface ChanceNamesType {
+    hasChance:randomItem[],
+    hasOneChance:randomItem[],
+    students:randomItem[]
+  }
+  const chanceNames = useRef<ChanceNamesType>({} as ChanceNamesType);
   // console.log('page render')
-  const setRandomNames = () => {
-    RandomNames.current = getRandom(groupNames.current);
-  };
   useEffect(()=>{ 
     const getFile = async () => {
       try {
@@ -137,38 +141,42 @@ const Page: React.FC = () => {
    getFile();
   },[])
   useEffect(()=>{
+    if(fileId!="0"){
+      setGroupNames();
+      setChanceNames();
+      setAllRandom(Number(group));
+    }
+  },[fileId])
+  useEffect(()=>{
     const keys = Object.keys(appState.students);
     if(appState.students){
-      setFileList(appState.students)
-    }
-    if(names.length==0&&keys.length>0){
-        groupNames.current = appState.students[keys[0]].data.map(({id,name})=>{
-          return {
-            key:String(id),name
-          }
-        });
-        setRandomNames();
-        handleGroupChange(group);
-    }else if(keys.length == 0){
-      groupNames.current = [];
-      setRandomNames();
-      handleGroupChange(group);
+      setFileList(appState.students);
     }
   },[appState])
-  const handleStart = useCallback(() => {
-    for (let item of RandomNameRef.current) {
-      item.start();
+  const setGroupNames = ()=>{
+    try{
+      groupNames.current = appState.students[fileId].data.map(({id,name,chance,onechance})=>{
+        return {
+          id:String(id),name,chance,onechance
+        }
+      });
+    }catch{
+      groupNames.current = [];
     }
-  }, []);
+  }
+  const handleStart = () => {
+    if(!timeoutList.current){
+      timeoutList.current = setInterval(()=>{
+        setAllRandom();
+      },50)
+    }
+  }
   const handleStop = () => {
-    for (let item of timeoutList.current) {
-      clearInterval(item);
+    if(timeoutList.current){
+      clearInterval(timeoutList.current!);
+      timeoutList.current= null;
+      _setActiveNames(Number(group));
     }
-    timeoutList.current = [];
-    for (let item of RandomNameRef.current) {
-      item.stop();
-    }
-    setRandomNames();
   };
   const handleOpenDrawer = useCallback(() => {
     setDrawerStatus(true);
@@ -179,68 +187,137 @@ const Page: React.FC = () => {
   const handleCloseDrawer = useCallback(() => {
     setDrawerStatus(false);
   }, []);
+  //将全部名字分组
   const handleGroupChange = useCallback((value: string) => {
-    const _value = Number(value),
-      remainder = RandomNames.current.length % _value,
-      _names: randomItem[][] = [];
-    const full_len = RandomNames.current.length - remainder;
-    const section = full_len / _value;
-    let i = 0,
-      k = 0;
-    while (i < full_len) {
-      _names[k] = _names[k] || [];
-      _names[k].push(RandomNames.current[i]);
-      i++;
-      if (!(i % section)) {
-        k++;
-      }
-    }
-    const remainderPeople =
-      remainder > 0 ? RandomNames.current.slice(-1 * remainder) : [];
-    i = 0;
-    remainderPeople.forEach((item) => {
-      _names[i].push(item);
-      i++;
-      if (i == _names.length) {
-        i = 0;
-      }
-    });
-    setNames(_names);
     setGroup(value);
+    setAllRandom(Number(value));
   }, []);
   const handleFileChange = useCallback((value: string,val2?:string) => {
     if(value === "init"){
-      !fileIndex&&setFileIndex(val2||"")
+      !fileId&&setFileId(val2||"")
     }else{
       
-     setFileIndex(value);
+     setFileId(value);
     }
   }, []);
+  const setChanceNames = ()=>{
+    let hasOneChance = [],hasChance = [],students = [];
+    for(let item of groupNames.current){
+      
+      students.push(item)
+      if(item.onechance>0){
+        hasOneChance.push(item)
+      }else if(item.chance>0){
+        hasChance.push(item)
+      }
+    }
+    chanceNames.current = {
+      hasOneChance,hasChance,students
+    }
+  }
+  type ChanceNamesKeys = keyof ChanceNamesType;
+  const deleteChanceNamesById = (id:string,target?:ChanceNamesKeys[])=>{
+    let keys  = target?target: Object.keys(chanceNames.current);
+     keys.forEach((key)=>{
+      const item = chanceNames.current[key as ChanceNamesKeys];
+      for(let index in item){
+        const val = item[index];
+        if(val.id === id){
+          item.splice(Number(index),1);
+          break;
+        }
+      }
+    })
+  }
+  //通过名字概率计算出随机名字
+  const countRandom = (max:number,groups:randomItem[],chance?:number)=>{
+    const random = randomZeroBetween(max);
+    // 0 10 15
+    let total = 0,current = null; 
+    for(let index in groups){
+        total += Number(chance||groups[index].chance);
+        if(random < total){
+          current = index;
+          break;
+        }
+    }
+    return groups[Number(current)]  || null;
+  }
+  //随机全部名字
+  const setAllRandom = (len=Number(group))=>{
+    let _arr:randomItem[] = Array.from({length:len}) as any;
+    
+    const names = [...groupNames.current];
+   //console.log(len)
+    for(let index in _arr){
+       const i = randomZeroBetween(names.length);
+       //console.log(i);
+       _arr[index] = names[i];
+       names.splice(i,1);
+
+    }
+    setActiveNames(_arr);
+  }
+  //点击停止根据概率设置当前随机名字
+  const _setActiveNames = async (len=Number(group))=>{
+    let _arr:randomItem[] = [] as any;
+    for(let i = 0;i<len;i++){
+       _arr[i] = await getRandomNames();
+    }
+    setActiveNames(_arr);
+    setTimeout(async ()=>{
+      for(let item of _arr){
+        if(item.onechance===101){
+          await dispatch(updateStudent({id:fileId,data:{onechance:0,id:item.id}}));
+        }
+      }
+    })
+
+  }
+  //通过概率获取名字
+  const getRandomNames = async ()=>{
+    if(!chanceNames.current?.students||chanceNames.current?.students.length===0){
+      setChanceNames();
+    }
+    const { hasOneChance,hasChance,students } = chanceNames.current;
+    let _student;
+    for(let item of hasOneChance){ //单次概率按单人概率/100计算 每个人概率最高100
+      _student = countRandom(101,[item],item.onechance);
+      _student.onechance = 101;//101标识单次概率已使用
+      if(_student){
+        break;
+      }
+    }
+    if(!_student){
+      //普通概率按所有人单人概率/1000 计算 所有人概率合计1000
+      let chanceStudent = countRandom(1001,hasChance)
+      _student = chanceStudent?chanceStudent:countRandom(students.length,students,1);
+    }
+    // console.log(_student)
+    deleteChanceNamesById(_student.id);
+    return _student;
+    
+  }
   return (
     <div className='main'>
       {contextHolder}
       <Header />
       <SelectGroups
         fileList={fileList}
+        fileId= {fileId}
         handleSelChange={handleGroupChange}
         handleFileChange={handleFileChange}
         handleOpenDrawer={handleOpenDrawer}
         handleOpenSetting={setSettingstatus}
       ></SelectGroups>
       <div style={{ display: "flex", justifyContent: "center" }}>
-        {names.map((item, index) => (
+        {activeNames.map((item, index) => (
           <div key={index} style={{ margin: "0 20px" }}>
-            <RandomName
-              ref={(ref: any) => {
-                RandomNameRef.current[index] = ref;
-              }}
-              data={item}
-              timeoutList={timeoutList}
-            ></RandomName>
+            <RandomName current={item} ></RandomName>
           </div>
         ))}
       </div>
-      <div style={{ position: "absolute", bottom: "150px",display:names.length<=0&&'none'||'' }}>
+      <div style={{ position: "absolute", bottom: "150px" }}>
         <Button
           size='large'
           style={{ marginRight: "10px" }}
@@ -257,7 +334,7 @@ const Page: React.FC = () => {
       <StudentsTable
         open={drawerStatus}
         close={handleCloseDrawer}
-        fileId={fileIndex}
+        fileId={fileId}
         fileList={fileList}
       ></StudentsTable>
       <div id='stars'></div>

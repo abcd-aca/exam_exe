@@ -41,6 +41,7 @@ const createWindow = ()=>{
 
 app.whenReady().then(()=>{
     Menu.setApplicationMenu(null);
+    app.setUserTasks([]);
     ipcMain.handle('readfile',(event,path:string)=>{
         return readXlsxData(path)
     })

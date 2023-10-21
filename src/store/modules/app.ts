@@ -99,7 +99,7 @@ export const initStudents = createAsyncThunk(
   "iniStudentStatus",
   async (path: undefined, thunkApi) => {
     try {
-      console.log(rootUrl("data.json","resources/data.json"))
+    //  console.log(rootUrl("data.json","resources/data.json"))
       const cryptodb = new Db<dbData>(rootUrl("data.json","resources/data.json"));
       const data = await cryptodb.getData();
       return {
